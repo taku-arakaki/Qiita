@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html xmlns:og="http://ogp.me/ns#"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"><meta charset="UTF-8"><title>PostgreSQLが提供するバックアップ機能 - Qiita</title><meta content="width=device-width,initial-scale=1" name="viewport"><meta content="
+
+はじめに
+
+PostgreSQLにはコア機能として提供されているバックアップの機能がいくつか存在します。
+今回はそれらの機能から、PostgreSQLが稼働した（サービスを継続した）状態で取得できる「論理バックアップ」、「オンラインバックアップ」についてまとめてみました。
+
+
+1. PostgreSQLで実施可能なバックアップ手法の一覧
+
+追加モジュール等を利用せず、PostgreSQLが提供する機能で実施可能なバックアップの取得方法を以下にまとめます。
+
+
+論理バ..." name="description"><meta content="summary" name="twitter:card"><meta content="@Qiita" name="twitter:site"><meta content="PostgreSQLが提供するバックアップ機能 - Qiita" property="og:title"><meta content="article" property="og:type"><meta content="http://qiita.com/U_ikki/items/3158bf7c9e550ed0eeae" property="og:url"><meta content="http://cdn.qiita.com/assets/qiita-fb-2887e7b4aad86fd8c25cea84846f2236.png" property="og:image"><meta content="# はじめに
+PostgreSQLにはコア機能として提供されているバックアップの機能がいくつか存在します。
+今回はそれらの機能から、PostgreSQLが稼働した（サービスを継続した）状態で取得できる「論理バックアップ」、「オンライン..." property="og:description"><meta content="Qiita" property="og:site_name"><meta content="564524038" property="fb:admins"><link rel="shortcut icon" type="image/x-icon" href="http://cdn.qiita.com/assets/favicons/public/production-4ff10c1e1e2b5fcb353ff9cafdd56c70.ico"><link rel="apple-touch-icon" type="image/png" href="http://cdn.qiita.com/assets/favicons/public/apple-touch-icon-f9a6afad761ec2306e10db2736187c8b.png"><link href="http://qiita.com/opensearch.xml" rel="search" title="Qiita" type="application/opensearchdescription+xml"><link rel="stylesheet" media="all" href="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/public-08b702002235d55066b7febb031d2220.css"><meta name="csrf-param" content="authenticity_token">
+<meta name="csrf-token" content="SdgQU03vsbbU/sPUJZjHOk2IGDFBpGrWIGfhpzMMgjvF6rBpFNcPxm39nkgUxzOAKpFSRhccfqRov+wg9I6DsQ=="><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/pageviews.js" async="" type="text/javascript"></script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/segment.js" async="" type="text/javascript"></script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/tdim-0.js" async=""></script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/gtm_002.js" async="" type="text/javascript"></script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/audience.js" async="" type="text/javascript"></script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/itm.js" async=""></script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/conversion_async.js" async="" type="text/javascript"></script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/gtm.js" async=""></script><script async="" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/cbgapi.loaded_1"></script><script async="" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/cbgapi.loaded_0"></script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/ads"></script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/ads_002"></script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/button.js" async="" charset="utf-8" type="text/javascript"></script><script async="" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/pubads_impl_116.js"></script><link href="http://tpc.googlesyndication.com/safeframe/1-0-8/html/container.html" rel="prefetch"><script type="text/x-mathjax-config;executed=true">MathJax.Hub.Config({ skipStartupTypeset: true, showProcessingMessages: false, tex2jax: { inlineMath: [['$', '$']], displayMath: [['$$', '$$']], processEscapes: true, processEnvironments: false, processRefs: false, skipTags: ['script','noscript','style','textarea','pre','code','a','h1','h2','h3','h4','h5','h6'] } })</script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/MathJax.js"></script><style type="text/css">.fb_hidden{position:absolute;top:-10000px;z-index:10001}.fb_reposition{overflow:hidden;position:relative}.fb_invisible{display:none}.fb_reset{background:none;border:0;border-spacing:0;color:#000;cursor:auto;direction:ltr;font-family:"lucida grande", tahoma, verdana, arial, sans-serif;font-size:11px;font-style:normal;font-variant:normal;font-weight:normal;letter-spacing:normal;line-height:1;margin:0;overflow:visible;padding:0;text-align:left;text-decoration:none;text-indent:0;text-shadow:none;text-transform:none;visibility:visible;white-space:normal;word-spacing:normal}.fb_reset>div{overflow:hidden}.fb_link img{border:none}@keyframes fb_transform{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}.fb_animate{animation:fb_transform .3s forwards}
+.fb_dialog{background:rgba(82, 82, 82, .7);position:absolute;top:-10000px;z-index:10001}.fb_reset .fb_dialog_legacy{overflow:visible}.fb_dialog_advanced{padding:10px;-moz-border-radius:8px;-webkit-border-radius:8px;border-radius:8px}.fb_dialog_content{background:#fff;color:#333}.fb_dialog_close_icon{background:url(http://static.xx.fbcdn.net/rsrc.php/v3/yq/r/IE9JII6Z1Ys.png) no-repeat scroll 0 0 transparent;cursor:pointer;display:block;height:15px;position:absolute;right:18px;top:17px;width:15px}.fb_dialog_mobile .fb_dialog_close_icon{top:5px;left:5px;right:auto}.fb_dialog_padding{background-color:transparent;position:absolute;width:1px;z-index:-1}.fb_dialog_close_icon:hover{background:url(http://static.xx.fbcdn.net/rsrc.php/v3/yq/r/IE9JII6Z1Ys.png) no-repeat scroll 0 -15px transparent}.fb_dialog_close_icon:active{background:url(http://static.xx.fbcdn.net/rsrc.php/v3/yq/r/IE9JII6Z1Ys.png) no-repeat scroll 0 -30px transparent}.fb_dialog_loader{background-color:#f6f7f9;border:1px solid #606060;font-size:24px;padding:20px}.fb_dialog_top_left,.fb_dialog_top_right,.fb_dialog_bottom_left,.fb_dialog_bottom_right{height:10px;width:10px;overflow:hidden;position:absolute}.fb_dialog_top_left{background:url(http://static.xx.fbcdn.net/rsrc.php/v3/ye/r/8YeTNIlTZjm.png) no-repeat 0 0;left:-10px;top:-10px}.fb_dialog_top_right{background:url(http://static.xx.fbcdn.net/rsrc.php/v3/ye/r/8YeTNIlTZjm.png) no-repeat 0 -10px;right:-10px;top:-10px}.fb_dialog_bottom_left{background:url(http://static.xx.fbcdn.net/rsrc.php/v3/ye/r/8YeTNIlTZjm.png) no-repeat 0 -20px;bottom:-10px;left:-10px}.fb_dialog_bottom_right{background:url(http://static.xx.fbcdn.net/rsrc.php/v3/ye/r/8YeTNIlTZjm.png) no-repeat 0 -30px;right:-10px;bottom:-10px}.fb_dialog_vert_left,.fb_dialog_vert_right,.fb_dialog_horiz_top,.fb_dialog_horiz_bottom{position:absolute;background:#525252;filter:alpha(opacity=70);opacity:.7}.fb_dialog_vert_left,.fb_dialog_vert_right{width:10px;height:100%}.fb_dialog_vert_left{margin-left:-10px}.fb_dialog_vert_right{right:0;margin-right:-10px}.fb_dialog_horiz_top,.fb_dialog_horiz_bottom{width:100%;height:10px}.fb_dialog_horiz_top{margin-top:-10px}.fb_dialog_horiz_bottom{bottom:0;margin-bottom:-10px}.fb_dialog_iframe{line-height:0}.fb_dialog_content .dialog_title{background:#6d84b4;border:1px solid #365899;color:#fff;font-size:14px;font-weight:bold;margin:0}.fb_dialog_content .dialog_title>span{background:url(http://static.xx.fbcdn.net/rsrc.php/v3/yd/r/Cou7n-nqK52.gif) no-repeat 5px 50%;float:left;padding:5px 0 7px 26px}body.fb_hidden{-webkit-transform:none;height:100%;margin:0;overflow:visible;position:absolute;top:-10000px;left:0;width:100%}.fb_dialog.fb_dialog_mobile.loading{background:url(http://static.xx.fbcdn.net/rsrc.php/v3/ya/r/3rhSv5V8j3o.gif) white no-repeat 50% 50%;min-height:100%;min-width:100%;overflow:hidden;position:absolute;top:0;z-index:10001}.fb_dialog.fb_dialog_mobile.loading.centered{width:auto;height:auto;min-height:initial;min-width:initial;background:none}.fb_dialog.fb_dialog_mobile.loading.centered #fb_dialog_loader_spinner{width:100%}.fb_dialog.fb_dialog_mobile.loading.centered .fb_dialog_content{background:none}.loading.centered #fb_dialog_loader_close{color:#fff;display:block;padding-top:20px;clear:both;font-size:18px}#fb-root #fb_dialog_ipad_overlay{background:rgba(0, 0, 0, .45);position:absolute;bottom:0;left:0;right:0;top:0;width:100%;min-height:100%;z-index:10000}#fb-root #fb_dialog_ipad_overlay.hidden{display:none}.fb_dialog.fb_dialog_mobile.loading iframe{visibility:hidden}.fb_dialog_content .dialog_header{-webkit-box-shadow:white 0 1px 1px -1px inset;background:-webkit-gradient(linear, 0% 0%, 0% 100%, from(#738ABA), to(#2C4987));border-bottom:1px solid;border-color:#1d4088;color:#fff;font:14px Helvetica, sans-serif;font-weight:bold;text-overflow:ellipsis;text-shadow:rgba(0, 30, 84, .296875) 0 -1px 0;vertical-align:middle;white-space:nowrap}.fb_dialog_content .dialog_header table{-webkit-font-smoothing:subpixel-antialiased;height:43px;width:100%}.fb_dialog_content .dialog_header td.header_left{font-size:12px;padding-left:5px;vertical-align:middle;width:60px}.fb_dialog_content .dialog_header td.header_right{font-size:12px;padding-right:5px;vertical-align:middle;width:60px}.fb_dialog_content .touchable_button{background:-webkit-gradient(linear, 0% 0%, 0% 100%, from(#4966A6), color-stop(.5, #355492), to(#2A4887));border:1px solid #29487d;-webkit-background-clip:padding-box;-webkit-border-radius:3px;-webkit-box-shadow:rgba(0, 0, 0, .117188) 0 1px 1px inset, rgba(255, 255, 255, .167969) 0 1px 0;display:inline-block;margin-top:3px;max-width:85px;line-height:18px;padding:4px 12px;position:relative}.fb_dialog_content .dialog_header .touchable_button input{border:none;background:none;color:#fff;font:12px Helvetica, sans-serif;font-weight:bold;margin:2px -12px;padding:2px 6px 3px 6px;text-shadow:rgba(0, 30, 84, .296875) 0 -1px 0}.fb_dialog_content .dialog_header .header_center{color:#fff;font-size:16px;font-weight:bold;line-height:18px;text-align:center;vertical-align:middle}.fb_dialog_content .dialog_content{background:url(http://static.xx.fbcdn.net/rsrc.php/v3/y9/r/jKEcVPZFk-2.gif) no-repeat 50% 50%;border:1px solid #555;border-bottom:0;border-top:0;height:150px}.fb_dialog_content .dialog_footer{background:#f6f7f9;border:1px solid #555;border-top-color:#ccc;height:40px}#fb_dialog_loader_close{float:left}.fb_dialog.fb_dialog_mobile .fb_dialog_close_button{text-shadow:rgba(0, 30, 84, .296875) 0 -1px 0}.fb_dialog.fb_dialog_mobile .fb_dialog_close_icon{visibility:hidden}#fb_dialog_loader_spinner{animation:rotateSpinner 1.2s linear infinite;background-color:transparent;background-image:url(http://static.xx.fbcdn.net/rsrc.php/v3/yD/r/t-wz8gw1xG1.png);background-repeat:no-repeat;background-position:50% 50%;height:24px;width:24px}@keyframes rotateSpinner{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.fb_iframe_widget{display:inline-block;position:relative}.fb_iframe_widget span{display:inline-block;position:relative;text-align:justify}.fb_iframe_widget iframe{position:absolute}.fb_iframe_widget_fluid_desktop,.fb_iframe_widget_fluid_desktop span,.fb_iframe_widget_fluid_desktop iframe{max-width:100%}.fb_iframe_widget_fluid_desktop iframe{min-width:220px;position:relative}.fb_iframe_widget_lift{z-index:1}.fb_hide_iframes iframe{position:relative;left:-10000px}.fb_iframe_widget_loader{position:relative;display:inline-block}.fb_iframe_widget_fluid{display:inline}.fb_iframe_widget_fluid span{width:100%}.fb_iframe_widget_loader iframe{min-height:32px;z-index:2;zoom:1}.fb_iframe_widget_loader .FB_Loader{background:url(http://static.xx.fbcdn.net/rsrc.php/v3/y9/r/jKEcVPZFk-2.gif) no-repeat;height:32px;width:32px;margin-left:-16px;position:absolute;left:50%;z-index:4}</style><style type="text/css">.MathJax_Hover_Frame {border-radius: .25em; -webkit-border-radius: .25em; -moz-border-radius: .25em; -khtml-border-radius: .25em; box-shadow: 0px 0px 15px #83A; -webkit-box-shadow: 0px 0px 15px #83A; -moz-box-shadow: 0px 0px 15px #83A; -khtml-box-shadow: 0px 0px 15px #83A; border: 1px solid #A6D ! important; display: inline-block; position: absolute}
+.MathJax_Menu_Button .MathJax_Hover_Arrow {position: absolute; cursor: pointer; display: inline-block; border: 2px solid #AAA; border-radius: 4px; -webkit-border-radius: 4px; -moz-border-radius: 4px; -khtml-border-radius: 4px; font-family: 'Courier New',Courier; font-size: 9px; color: #F0F0F0}
+.MathJax_Menu_Button .MathJax_Hover_Arrow span {display: block; background-color: #AAA; border: 1px solid; border-radius: 3px; line-height: 0; padding: 4px}
+.MathJax_Hover_Arrow:hover {color: white!important; border: 2px solid #CCC!important}
+.MathJax_Hover_Arrow:hover span {background-color: #CCC!important}
+</style><style type="text/css">#MathJax_About {position: fixed; left: 50%; width: auto; text-align: center; border: 3px outset; padding: 1em 2em; background-color: #DDDDDD; color: black; cursor: default; font-family: message-box; font-size: 120%; font-style: normal; text-indent: 0; text-transform: none; line-height: normal; letter-spacing: normal; word-spacing: normal; word-wrap: normal; white-space: nowrap; float: none; z-index: 201; border-radius: 15px; -webkit-border-radius: 15px; -moz-border-radius: 15px; -khtml-border-radius: 15px; box-shadow: 0px 10px 20px #808080; -webkit-box-shadow: 0px 10px 20px #808080; -moz-box-shadow: 0px 10px 20px #808080; -khtml-box-shadow: 0px 10px 20px #808080; filter: progid:DXImageTransform.Microsoft.dropshadow(OffX=2, OffY=2, Color='gray', Positive='true')}
+#MathJax_About.MathJax_MousePost {outline: none}
+.MathJax_Menu {position: absolute; background-color: white; color: black; width: auto; padding: 5px 0px; border: 1px solid #CCCCCC; margin: 0; cursor: default; font: menu; text-align: left; text-indent: 0; text-transform: none; line-height: normal; letter-spacing: normal; word-spacing: normal; word-wrap: normal; white-space: nowrap; float: none; z-index: 201; border-radius: 5px; -webkit-border-radius: 5px; -moz-border-radius: 5px; -khtml-border-radius: 5px; box-shadow: 0px 10px 20px #808080; -webkit-box-shadow: 0px 10px 20px #808080; -moz-box-shadow: 0px 10px 20px #808080; -khtml-box-shadow: 0px 10px 20px #808080; filter: progid:DXImageTransform.Microsoft.dropshadow(OffX=2, OffY=2, Color='gray', Positive='true')}
+.MathJax_MenuItem {padding: 1px 2em; background: transparent}
+.MathJax_MenuArrow {position: absolute; right: .5em; padding-top: .25em; color: #666666; font-size: .75em}
+.MathJax_MenuActive .MathJax_MenuArrow {color: white}
+.MathJax_MenuArrow.RTL {left: .5em; right: auto}
+.MathJax_MenuCheck {position: absolute; left: .7em}
+.MathJax_MenuCheck.RTL {right: .7em; left: auto}
+.MathJax_MenuRadioCheck {position: absolute; left: .7em}
+.MathJax_MenuRadioCheck.RTL {right: .7em; left: auto}
+.MathJax_MenuLabel {padding: 1px 2em 3px 1.33em; font-style: italic}
+.MathJax_MenuRule {border-top: 1px solid #DDDDDD; margin: 4px 3px}
+.MathJax_MenuDisabled {color: GrayText}
+.MathJax_MenuActive {background-color: #606872; color: white}
+.MathJax_MenuDisabled:focus, .MathJax_MenuLabel:focus {background-color: #E8E8E8}
+.MathJax_ContextMenu:focus {outline: none}
+.MathJax_ContextMenu .MathJax_MenuItem:focus {outline: none}
+#MathJax_AboutClose {top: .2em; right: .2em}
+.MathJax_Menu .MathJax_MenuClose {top: -10px; left: -10px}
+.MathJax_MenuClose {position: absolute; cursor: pointer; display: inline-block; border: 2px solid #AAA; border-radius: 18px; -webkit-border-radius: 18px; -moz-border-radius: 18px; -khtml-border-radius: 18px; font-family: 'Courier New',Courier; font-size: 24px; color: #F0F0F0}
+.MathJax_MenuClose span {display: block; background-color: #AAA; border: 1.5px solid; border-radius: 18px; -webkit-border-radius: 18px; -moz-border-radius: 18px; -khtml-border-radius: 18px; line-height: 0; padding: 8px 0 6px}
+.MathJax_MenuClose:hover {color: white!important; border: 2px solid #CCC!important}
+.MathJax_MenuClose:hover span {background-color: #CCC!important}
+.MathJax_MenuClose:hover:focus {outline: none}
+</style><style type="text/css">.MathJax_Preview .MJXf-math {color: inherit!important}
+</style><style type="text/css">.MJX_Assistive_MathML {position: absolute!important; top: 0; left: 0; clip: rect(1px, 1px, 1px, 1px); padding: 1px 0 0 0!important; border: 0!important; height: 1px!important; width: 1px!important; overflow: hidden!important; display: block!important}
+.MJX_Assistive_MathML.MJX_Assistive_MathML_Block {width: 100%!important}
+</style><style type="text/css">#MathJax_Zoom {position: absolute; background-color: #F0F0F0; overflow: auto; display: block; z-index: 301; padding: .5em; border: 1px solid black; margin: 0; font-weight: normal; font-style: normal; text-align: left; text-indent: 0; text-transform: none; line-height: normal; letter-spacing: normal; word-spacing: normal; word-wrap: normal; white-space: nowrap; float: none; -webkit-box-sizing: content-box; -moz-box-sizing: content-box; box-sizing: content-box; box-shadow: 5px 5px 15px #AAAAAA; -webkit-box-shadow: 5px 5px 15px #AAAAAA; -moz-box-shadow: 5px 5px 15px #AAAAAA; -khtml-box-shadow: 5px 5px 15px #AAAAAA; filter: progid:DXImageTransform.Microsoft.dropshadow(OffX=2, OffY=2, Color='gray', Positive='true')}
+#MathJax_ZoomOverlay {position: absolute; left: 0; top: 0; z-index: 300; display: inline-block; width: 100%; height: 100%; border: 0; padding: 0; margin: 0; background-color: white; opacity: 0; filter: alpha(opacity=0)}
+#MathJax_ZoomFrame {position: relative; display: inline-block; height: 0; width: 0}
+#MathJax_ZoomEventTrap {position: absolute; left: 0; top: 0; z-index: 302; display: inline-block; border: 0; padding: 0; margin: 0; background-color: white; opacity: 0; filter: alpha(opacity=0)}
+</style><style type="text/css">.MathJax_Preview {color: #888}
+#MathJax_Message {position: fixed; left: 1px; bottom: 2px; background-color: #E6E6E6; border: 1px solid #959595; margin: 0px; padding: 2px 8px; z-index: 102; color: black; font-size: 80%; width: auto; white-space: nowrap}
+#MathJax_MSIE_Frame {position: absolute; top: 0; left: 0; width: 0px; z-index: 101; border: 0px; margin: 0px; padding: 0px}
+.MathJax_Error {color: #CC0000; font-style: italic}
+</style><style type="text/css">.MJXp-script {font-size: .8em}
+.MJXp-right {-webkit-transform-origin: right; -moz-transform-origin: right; -ms-transform-origin: right; -o-transform-origin: right; transform-origin: right}
+.MJXp-bold {font-weight: bold}
+.MJXp-italic {font-style: italic}
+.MJXp-scr {font-family: MathJax_Script,'Times New Roman',Times,STIXGeneral,serif}
+.MJXp-frak {font-family: MathJax_Fraktur,'Times New Roman',Times,STIXGeneral,serif}
+.MJXp-sf {font-family: MathJax_SansSerif,'Times New Roman',Times,STIXGeneral,serif}
+.MJXp-cal {font-family: MathJax_Caligraphic,'Times New Roman',Times,STIXGeneral,serif}
+.MJXp-mono {font-family: MathJax_Typewriter,'Times New Roman',Times,STIXGeneral,serif}
+.MJXp-largeop {font-size: 150%}
+.MJXp-largeop.MJXp-int {vertical-align: -.2em}
+.MJXp-math {display: inline-block; line-height: 1.2; text-indent: 0; font-family: 'Times New Roman',Times,STIXGeneral,serif; white-space: nowrap; border-collapse: collapse}
+.MJXp-display {display: block; text-align: center; margin: 1em 0}
+.MJXp-math span {display: inline-block}
+.MJXp-box {display: block!important; text-align: center}
+.MJXp-box:after {content: " "}
+.MJXp-rule {display: block!important; margin-top: .1em}
+.MJXp-char {display: block!important}
+.MJXp-mo {margin: 0 .15em}
+.MJXp-mfrac {margin: 0 .125em; vertical-align: .25em}
+.MJXp-denom {display: inline-table!important; width: 100%}
+.MJXp-denom > * {display: table-row!important}
+.MJXp-surd {vertical-align: top}
+.MJXp-surd > * {display: block!important}
+.MJXp-script-box > *  {display: table!important; height: 50%}
+.MJXp-script-box > * > * {display: table-cell!important; vertical-align: top}
+.MJXp-script-box > *:last-child > * {vertical-align: bottom}
+.MJXp-script-box > * > * > * {display: block!important}
+.MJXp-mphantom {visibility: hidden}
+.MJXp-munderover {display: inline-table!important}
+.MJXp-over {display: inline-block!important; text-align: center}
+.MJXp-over > * {display: block!important}
+.MJXp-munderover > * {display: table-row!important}
+.MJXp-mtable {vertical-align: .25em; margin: 0 .125em}
+.MJXp-mtable > * {display: inline-table!important; vertical-align: middle}
+.MJXp-mtr {display: table-row!important}
+.MJXp-mtd {display: table-cell!important; text-align: center; padding: .5em 0 0 .5em}
+.MJXp-mtr > .MJXp-mtd:first-child {padding-left: 0}
+.MJXp-mtr:first-child > .MJXp-mtd {padding-top: 0}
+.MJXp-mlabeledtr {display: table-row!important}
+.MJXp-mlabeledtr > .MJXp-mtd:first-child {padding-left: 0}
+.MJXp-mlabeledtr:first-child > .MJXp-mtd {padding-top: 0}
+.MJXp-merror {background-color: #FFFF88; color: #CC0000; border: 1px solid #CC0000; padding: 1px 3px; font-style: normal; font-size: 90%}
+.MJXp-scale0 {-webkit-transform: scaleX(.0); -moz-transform: scaleX(.0); -ms-transform: scaleX(.0); -o-transform: scaleX(.0); transform: scaleX(.0)}
+.MJXp-scale1 {-webkit-transform: scaleX(.1); -moz-transform: scaleX(.1); -ms-transform: scaleX(.1); -o-transform: scaleX(.1); transform: scaleX(.1)}
+.MJXp-scale2 {-webkit-transform: scaleX(.2); -moz-transform: scaleX(.2); -ms-transform: scaleX(.2); -o-transform: scaleX(.2); transform: scaleX(.2)}
+.MJXp-scale3 {-webkit-transform: scaleX(.3); -moz-transform: scaleX(.3); -ms-transform: scaleX(.3); -o-transform: scaleX(.3); transform: scaleX(.3)}
+.MJXp-scale4 {-webkit-transform: scaleX(.4); -moz-transform: scaleX(.4); -ms-transform: scaleX(.4); -o-transform: scaleX(.4); transform: scaleX(.4)}
+.MJXp-scale5 {-webkit-transform: scaleX(.5); -moz-transform: scaleX(.5); -ms-transform: scaleX(.5); -o-transform: scaleX(.5); transform: scaleX(.5)}
+.MJXp-scale6 {-webkit-transform: scaleX(.6); -moz-transform: scaleX(.6); -ms-transform: scaleX(.6); -o-transform: scaleX(.6); transform: scaleX(.6)}
+.MJXp-scale7 {-webkit-transform: scaleX(.7); -moz-transform: scaleX(.7); -ms-transform: scaleX(.7); -o-transform: scaleX(.7); transform: scaleX(.7)}
+.MJXp-scale8 {-webkit-transform: scaleX(.8); -moz-transform: scaleX(.8); -ms-transform: scaleX(.8); -o-transform: scaleX(.8); transform: scaleX(.8)}
+.MJXp-scale9 {-webkit-transform: scaleX(.9); -moz-transform: scaleX(.9); -ms-transform: scaleX(.9); -o-transform: scaleX(.9); transform: scaleX(.9)}
+.MathJax_PHTML .noError {vertical-align: ; font-size: 90%; text-align: left; color: black; padding: 1px 3px; border: 1px solid}
+</style><style type="text/css">.MathJax_Display {text-align: center; margin: 1em 0em; position: relative; display: block!important; text-indent: 0; max-width: none; max-height: none; min-width: 0; min-height: 0; width: 100%}
+.MathJax .merror {background-color: #FFFF88; color: #CC0000; border: 1px solid #CC0000; padding: 1px 3px; font-style: normal; font-size: 90%}
+.MathJax .MJX-monospace {font-family: monospace}
+.MathJax .MJX-sans-serif {font-family: sans-serif}
+#MathJax_Tooltip {background-color: InfoBackground; color: InfoText; border: 1px solid black; box-shadow: 2px 2px 5px #AAAAAA; -webkit-box-shadow: 2px 2px 5px #AAAAAA; -moz-box-shadow: 2px 2px 5px #AAAAAA; -khtml-box-shadow: 2px 2px 5px #AAAAAA; filter: progid:DXImageTransform.Microsoft.dropshadow(OffX=2, OffY=2, Color='gray', Positive='true'); padding: 3px 4px; z-index: 401; position: absolute; left: 0; top: 0; width: auto; height: auto; display: none}
+.MathJax {display: inline; font-style: normal; font-weight: normal; line-height: normal; font-size: 100%; font-size-adjust: none; text-indent: 0; text-align: left; text-transform: none; letter-spacing: normal; word-spacing: normal; word-wrap: normal; white-space: nowrap; float: none; direction: ltr; max-width: none; max-height: none; min-width: 0; min-height: 0; border: 0; padding: 0; margin: 0}
+.MathJax:focus, body :focus .MathJax {display: inline-table}
+.MathJax img, .MathJax nobr, .MathJax a {border: 0; padding: 0; margin: 0; max-width: none; max-height: none; min-width: 0; min-height: 0; vertical-align: 0; line-height: normal; text-decoration: none}
+img.MathJax_strut {border: 0!important; padding: 0!important; margin: 0!important; vertical-align: 0!important}
+.MathJax span {display: inline; position: static; border: 0; padding: 0; margin: 0; vertical-align: 0; line-height: normal; text-decoration: none}
+.MathJax nobr {white-space: nowrap!important}
+.MathJax img {display: inline!important; float: none!important}
+.MathJax * {transition: none; -webkit-transition: none; -moz-transition: none; -ms-transition: none; -o-transition: none}
+.MathJax_Processing {visibility: hidden; position: fixed; width: 0; height: 0; overflow: hidden}
+.MathJax_Processed {display: none!important}
+.MathJax_ExBox {display: block!important; overflow: hidden; width: 1px; height: 60ex; min-height: 0; max-height: none}
+.MathJax .MathJax_EmBox {display: block!important; overflow: hidden; width: 1px; height: 60em; min-height: 0; max-height: none}
+.MathJax .MathJax_HitBox {cursor: text; background: white; opacity: 0; filter: alpha(opacity=0)}
+.MathJax .MathJax_HitBox * {filter: none; opacity: 1; background: transparent}
+#MathJax_Tooltip * {filter: none; opacity: 1; background: transparent}
+@font-face {font-family: MathJax_Main; src: url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/woff/MathJax_Main-Regular.woff?rev=2.6.0') format('woff'), url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/otf/MathJax_Main-Regular.otf?rev=2.6.0') format('opentype')}
+@font-face {font-family: MathJax_Main; src: url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/woff/MathJax_Main-Bold.woff?rev=2.6.0') format('woff'), url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/otf/MathJax_Main-Bold.otf?rev=2.6.0') format('opentype'); font-weight: bold}
+@font-face {font-family: MathJax_Main; src: url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/woff/MathJax_Main-Italic.woff?rev=2.6.0') format('woff'), url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/otf/MathJax_Main-Italic.otf?rev=2.6.0') format('opentype'); font-style: italic}
+@font-face {font-family: MathJax_Math; src: url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/woff/MathJax_Math-Italic.woff?rev=2.6.0') format('woff'), url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/otf/MathJax_Math-Italic.otf?rev=2.6.0') format('opentype'); font-style: italic}
+@font-face {font-family: MathJax_Caligraphic; src: url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/woff/MathJax_Caligraphic-Regular.woff?rev=2.6.0') format('woff'), url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/otf/MathJax_Caligraphic-Regular.otf?rev=2.6.0') format('opentype')}
+@font-face {font-family: MathJax_Size1; src: url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/woff/MathJax_Size1-Regular.woff?rev=2.6.0') format('woff'), url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/otf/MathJax_Size1-Regular.otf?rev=2.6.0') format('opentype')}
+@font-face {font-family: MathJax_Size2; src: url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/woff/MathJax_Size2-Regular.woff?rev=2.6.0') format('woff'), url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/otf/MathJax_Size2-Regular.otf?rev=2.6.0') format('opentype')}
+@font-face {font-family: MathJax_Size3; src: url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/woff/MathJax_Size3-Regular.woff?rev=2.6.0') format('woff'), url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/otf/MathJax_Size3-Regular.otf?rev=2.6.0') format('opentype')}
+@font-face {font-family: MathJax_Size4; src: url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/woff/MathJax_Size4-Regular.woff?rev=2.6.0') format('woff'), url('https://cdn.qiita.com/MathJax/2.6.0/fonts/HTML-CSS/TeX/otf/MathJax_Size4-Regular.otf?rev=2.6.0') format('opentype')}
+.MathJax .noError {vertical-align: ; font-size: 90%; text-align: left; color: black; padding: 1px 3px; border: 1px solid}
+</style></head><body class=" with-js"><div style="visibility: hidden; overflow: hidden; position: absolute; top: 0px; height: 1px; width: auto; padding: 0px; border: 0px none; margin: 0px; text-align: left; text-indent: 0px; text-transform: none; line-height: normal; letter-spacing: normal; word-spacing: normal;"><div id="MathJax_Hidden"></div></div><div style="display: none;" id="MathJax_Message"></div><noscript><iframe height="0" src="//www.googletagmanager.com/ns.html?id=GTM-TBQWPN" style="display:none;visibility:hidden" width="0"></iframe></noscript><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/gtm_003.js" async=""></script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/analytics.js" async=""></script><script id="optimizely-jssdk" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/52738645.js" async=""></script><script id="google-analytics-jssdk" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/ga.js" async=""></script><script id="twitter-jssdk" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/widgets.js" async=""></script><script id="facebook-jssdk" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/all.js" async=""></script><script gapi_processed="true" id="google-plusone-jssdk" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/plusone.js" async=""></script><script id="pocket-btn-js" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/btn.js" async=""></script><script>
+  document.body.className = document.body.className.replace('without-js', '') + ' with-js';
+  window.Qiita = {"asset_host":"cdn.qiita.com","TLD":"com","controller_path":"public/items","controller_action":"public/items#show","controller":"items","action":"show","action_path":"public/items#show","env":"production","flash":{},"is_team_page":false,"request_parameters":{"controller":"public/items","action":"show","user_id":"U_ikki","type":"items","id":"3158bf7c9e550ed0eeae"},"root_domain":"qiita.com","variant":null,"config":{"mixpanel":{"career":"dd35af27e959781713d63fd7ca898a8d","per_team":"c0a2116368b33b44b5029ebd2cc9b094","public":"be87616606b0e26a87689099aab2c4e5","team":"b7c0342acba2dbc8742484d98788efb3"},"default_locale":"ja","locale":"ja"},"team":null,"user":null,"GIT_BRANCH":null,"DEBUG":false};
+
+</script>
+<div class="headerContainer headerContainer-public" role="navigation"><script type="application/json" class="js-react-on-rails-component">{"component_name":"HeaderContainer","props":{"user":null,"team":null,"news":{"type":"News","content":"ストックの他に「いいね」が追加されました","url":"http://blog.qiita.com/post/153200849029/qiita-like-button"},"initial_unread_count":null,"siteid_image":"http://cdn.qiita.com/siteid-reverse.png","is_team_page":false,"on_team_setting":false,"show_post_menu":true,"show_search_menu":true,"is_fluid":false,"locale":"ja"},"trace":false,"dom_id":"HeaderContainer-react-component-4e0b6e04-906c-4a34-a87f-309677b99d51"}</script>
+    <div id="HeaderContainer-react-component-4e0b6e04-906c-4a34-a87f-309677b99d51"><header class="sharedHeader sharedHeader-public" data-reactroot=""><div class="sharedHeader_inner"><div class="sharedHeader_left"><span class="sharedHeader_logo open"><a href="http://qiita.com/" class="sharedHeader_logo_main"><span class="sharedHeader_logo_figure"><svg viewBox="0 0 75 26" xmlns="http://www.w3.org/2000/svg"><title>Qiita</title><path d="M24.6 12.2C24.6 6.2 20 0 12.2 0 6.2 0 0 4.6 0 12.4c0 6 4.6 12.2 12.4 12.2 2.5 0 5-.8 7.1-2.3l3.6 3.6 1.6-1.6-3.4-3.4c2.1-2.3 3.3-5.3 3.3-8.7zm-12.4-10c5.7 0 10.2 4.4 10.2 10.1 0 4.9-3.8 10.1-10.1 10.1s-10.1-5.1-10.1-10c0-6.4 5.1-10.2 10-10.2zM30.5 7.1h2.1v17h-2.1zM31.5 4.8c-1 0-1.8-.8-1.8-1.8s.8-1.8 1.8-1.8 1.8.8 1.8 1.8-.8 1.8-1.8 1.8zM40 4.8c-1 0-1.8-.8-1.8-1.8S39 1.2 40 1.2s1.8.8 1.8 1.8S41 4.8 40 4.8zM39 7.1h2.1v17H39zM53.7 24.4c-3.9 0-6.2-3-6.2-6v-16h2.1v4.7H57v2.1h-7.4v9.3c0 1.9 1.5 3.9 4.1 3.9.7 0 1.4-.2 2-.6l.2-.1 1 1.8-.2.1c-.9.5-2 .8-3 .8zM67.6 24.5c-5.7 0-9.1-4.5-9.1-8.9 0-5.7 4.5-9.1 8.9-9.1 2.3 0 4.1.8 5.4 2.3V7.1h2.1v17h-2.1v-1.9c-1.2 1.5-3 2.3-5.2 2.3zm-.2-15.9c-3.4 0-6.8 2.6-6.8 7 0 3.4 2.6 6.8 7 6.8 2 0 4-.9 5.3-2.5v-8.8c-1.4-1.6-3.3-2.5-5.5-2.5z"></path></svg></span></a></span><form method="get" action="/search" class="navbar-form navbar-left searchForm"><div class="searchForm_queryWrapper"><input name="q" autocomplete="off" placeholder="キーワードを入力" class="form-control searchForm_query"><div style="" class="searchForm_wiseSearchButton"><i class="fa fa-caret-down"></i></div></div></form><div class="navbar-text headerNews hidden-xs hidden-sm"><div class="headerNews_label label label-warning">News</div><a href="http://blog.qiita.com/post/153200849029/qiita-like-button" target="_blank" class="navbar-link">ストックの他に「いいね」が追加されました</a></div></div><div class="sharedHeader_right"><div class="sharedHeader_registerUser"><a href="http://qiita.com/signup?redirect_to=%2FU_ikki%2Fitems%2F3158bf7c9e550ed0eeae" class="btn btn-warning navbar-btn navbar-right">ユーザ登録</a></div><div class="sharedHeader_loginUser"><a href="http://qiita.com/login?redirect_to=%2FU_ikki%2Fitems%2F3158bf7c9e550ed0eeae" data-label="LoginButtonAtNavbar">ログイン</a></div></div></div></header></div>
+    
+</div><div id="main"><script type="application/ld+json">{  "@context": "http://schema.org",  "@type": "BreadcrumbList",  "itemListElement": [    {      "@type": "ListItem",      "position": 1,      "item": {        "@id": "/",        "name": "Qiita"      }    },    {      "@type": "ListItem",      "position": 2,      "item": {        "@id": "/items",        "name": "投稿"      }    },    {      "@type": "ListItem",      "position": 3,      "item": {        "@id": "/tags/PostgreSQL",        "name": "PostgreSQL"      }    }  ]}</script><article itemscope="" itemtype="http://schema.org/Article"><div class="ArticleMainHeader "><div class="container"></div><div class="container"><div class="row s-flex-align-center"><div class="col-sm-9"><h1 class="ArticleMainHeader__title" itemprop="headline">PostgreSQLが提供するバックアップ機能</h1><ul class="TagList"><li class="TagList__item" data-count="1171"><a class="u-link-unstyled TagList__label" href="http://qiita.com/tags/PostgreSQL"><img alt="PostgreSQL" class="TagList__icon" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/medium.jpg"><span>PostgreSQL</span></a></li><li class="TagList__item" data-count="61"><a class="u-link-unstyled TagList__label" href="http://qiita.com/tags/%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97"><img alt="バックアップ" class="TagList__icon" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/missing-2e17009a0b32a6423572b0e6dc56727e.png"><span>バックアップ</span></a></li></ul></div><div class="col-sm-3"><div class="itemsShowHeaderStock"><ul class="list-unstyled itemsShowHeaderStock_statusList"><li><div class="itemsShowHeaderStock_count stock"><span class="fa fa-thumbs-up"></span><span class="js-likecount">3</span></div><div class="itemsShowHeaderStock_countText">いいね</div></li><li><div class="itemsShowHeaderStock_count" content="0 UserComments" itemprop="commentCount"><span class="fa fa-comment"></span>0</div><div class="itemsShowHeaderStock_countText">コメント</div></li></ul></div><div class="js-likebutton" data-props="{&quot;like_status&quot;:false,&quot;like_count&quot;:3,&quot;uuid&quot;:&quot;3158bf7c9e550ed0eeae&quot;,&quot;likable_type&quot;:&quot;Article&quot;,&quot;position&quot;:&quot;article-header&quot;}"><div class="LikeButton" data-reactroot=""><button class="p-button"><span class="fa fa-fw fa-thumbs-up"></span><span>いいね</span></button></div></div><ul class="list-inline ArticleMainHeader__users"><li class="js-hovercard" data-hovercard-target-name="okumurakengo"><a itemprop="url" href="http://qiita.com/okumurakengo"><img alt="okumurakengo" class="thumb thumb--xs" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/1d2b20618845f3305fd0347ec8de9e75.jpeg"></a></li><li class="js-hovercard" data-hovercard-target-name="hyone29"><a itemprop="url" href="http://qiita.com/hyone29"><img alt="hyone29" class="thumb thumb--xs" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/1473688914.jpeg"></a></li><li class="js-hovercard" data-hovercard-target-name="Bentham3314"><a itemprop="url" href="http://qiita.com/Bentham3314"><img alt="Bentham3314" class="thumb thumb--xs" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/1473704683.png"></a></li></ul></div></div></div></div><div class="ArticleAsideHeader"><div class="container"><div class="u-flex u-space-between"><div class="u-flex u-flex-wrap"><div class="u-flex u-align-center s-pdv-5 u-flex-wrap"><div class="ArticleAsideHeader__author"><a href="http://qiita.com/U_ikki"><img class="thumb thumb--xs" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/1473716391.png" alt="1473716391"></a> <a class="u-link-unstyled" href="http://qiita.com/U_ikki">U_ikki</a> </div><div class="ArticleAsideHeader__date"><span><time datetime="2016-11-25T21:52:17+09:00" itemprop="datePublished">2016年11月25日</time>に投稿</span></div></div><div class="u-flex u-align-center s-pdv-5 mobile-hidden"></div><div class="u-flex u-align-center s-pdv-5 mobile-hidden"></div></div><div class="u-flex u-align-center s-flex-justiry-between s-pdv-5 u-shrink-0"><div class="ArticleAsideHeader__stock"><div class="js-stockbutton" data-position="top" data-props="{&quot;stock_status&quot;:false}"><div class="StockButton" data-reactroot=""><button><div class="StockButton__stock"><div class="fa-stack"><span class="fa fa-folder-open fa-stack-1x unstock"></span></div><!-- react-text: 6 -->&nbsp;<!-- /react-text --><span class="StockButton__label">ストック</span></div></button></div></div></div><div class="dropdown"><a class="dropdown-toggle" data-toggle="dropdown" href="#"><span class="fa fa-ellipsis-h fa-lg"></span></a><ul class="dropdown-menu dropdown-menu-right"><li><a href="http://qiita.com/U_ikki/items/3158bf7c9e550ed0eeae.md"><span class="fa fa-fw fa-file-text-o"></span> Markdownで本文を見る</a></li><li><a data-target=".js-report-form" data-toggle="modal" href="#"><span class="fa fa-fw fa-flag"></span> 問題がある投稿を報告する</a></li></ul></div></div></div></div></div><div class="container"><div style="position: relative;" class="row" id="article-body-wrapper"><div class="col-sm-9"><section class="markdownContent markdownContent-headingEnabled js-task-list-container clearfix position-relative" id="item-3158bf7c9e550ed0eeae" itemprop="articleBody">
+<h1>
+<span id="はじめに" class="fragment"></span><a href="#%E3%81%AF%E3%81%98%E3%82%81%E3%81%AB"><i class="fa fa-link"></i></a>はじめに</h1>
+
+<p>PostgreSQLにはコア機能として提供されているバックアップの機能がいくつか存在します。<br>
+今回はそれらの機能から、PostgreSQLが稼働した（サービスを継続した）状態で取得できる「論理バックアップ」、「オンラインバックアップ」についてまとめてみました。</p>
+
+<h1>
+<span id="1-postgresqlで実施可能なバックアップ手法の一覧" class="fragment"></span><a href="#1-postgresql%E3%81%A7%E5%AE%9F%E6%96%BD%E5%8F%AF%E8%83%BD%E3%81%AA%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%89%8B%E6%B3%95%E3%81%AE%E4%B8%80%E8%A6%A7"><i class="fa fa-link"></i></a>1. PostgreSQLで実施可能なバックアップ手法の一覧</h1>
+
+<p>追加モジュール等を利用せず、PostgreSQLが提供する機能で実施可能なバックアップの取得方法を以下にまとめます。</p>
+
+<h2>
+<span id="論理バックアップ" class="fragment"></span><a href="#%E8%AB%96%E7%90%86%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97"><i class="fa fa-link"></i></a>論理バックアップ</h2>
+
+<p>データベースの内容をSQLで保存することを論理バックアップと呼びます。</p>
+
+<table>
+<thead>
+<tr>
+<th style="text-align: center">項番</th>
+<th style="text-align: left">バックアップの格納先</th>
+<th style="text-align: left">バックアップの対象</th>
+<th style="text-align: left">コマンド</th>
+<th style="text-align: left">コマンド実行例(*1)</th>
+<th style="text-align: left">リストアに必要なWALのバックアップ(*2)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center">1-1</td>
+<td style="text-align: left">ローカル</td>
+<td style="text-align: left">特定のデータベース</td>
+<td style="text-align: left">pg_dump</td>
+<td style="text-align: left">$ pg_dump -Fc db_name &gt; db.dump</td>
+<td style="text-align: left">-（不要）</td>
+</tr>
+<tr>
+<td style="text-align: center">1-2</td>
+<td style="text-align: left">ローカル</td>
+<td style="text-align: left">特定のテーブルのみ</td>
+<td style="text-align: left">pg_dump</td>
+<td style="text-align: left">$ pg_dump db_name -t tbl_name &gt; db.sql</td>
+<td style="text-align: left">-（不要）</td>
+</tr>
+<tr>
+<td style="text-align: center">1-3</td>
+<td style="text-align: left">ローカル</td>
+<td style="text-align: left">データのみ</td>
+<td style="text-align: left">pg_dump</td>
+<td style="text-align: left">$ pg_dump db_name -a &gt; db.sql</td>
+<td style="text-align: left">-（不要）</td>
+</tr>
+<tr>
+<td style="text-align: center">1-4</td>
+<td style="text-align: left">ローカル</td>
+<td style="text-align: left">スキーマ情報のみ</td>
+<td style="text-align: left">pg_dump</td>
+<td style="text-align: left">$ pg_dump db_name -s &gt; db.sql</td>
+<td style="text-align: left">-（不要）</td>
+</tr>
+<tr>
+<td style="text-align: center">1-5</td>
+<td style="text-align: left">ローカル</td>
+<td style="text-align: left">DBクラスタ全体</td>
+<td style="text-align: left">pg_dumpall</td>
+<td style="text-align: left">$ pg_dumpall &gt; db.sql</td>
+<td style="text-align: left">-（不要）</td>
+</tr>
+</tbody>
+</table>
+
+<p>※ローカル：PostgreSQLがインストールされたサーバ上でマウントされているディスク</p>
+
+<h2>
+<span id="オンラインバックアップ" class="fragment"></span><a href="#%E3%82%AA%E3%83%B3%E3%83%A9%E3%82%A4%E3%83%B3%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97"><i class="fa fa-link"></i></a>オンラインバックアップ</h2>
+
+<p>PostgreSQLが稼働した状態で取得可能なバックアップ。<br>
+取得したバックアップファイルをPostgreSQLでは「ベースバックアップ」と呼びます。リストアには、ベースバックアップとWALファイルが必要になります。</p>
+
+<table>
+<thead>
+<tr>
+<th style="text-align: center">項番</th>
+<th style="text-align: left">バックアップの格納先</th>
+<th style="text-align: left">バックアップの対象</th>
+<th style="text-align: left">コマンド</th>
+<th style="text-align: left">コマンド実行例(*1)</th>
+<th style="text-align: left">リストアに必要なWALのバックアップ(*2)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center">1-6</td>
+<td style="text-align: left">ローカル</td>
+<td style="text-align: left">DBクラスタ全体</td>
+<td style="text-align: left">pg_start_backup<br>pg_stop_backup</td>
+<td style="text-align: left"><span>$</span> psql -c "SELECT pg_start_backup(now()::text)"<br><span>$</span> rsync 等<br><span>$</span> psql -c "SELECT pg_stop_backup()"</td>
+<td style="text-align: left">手動(*3)</td>
+</tr>
+<tr>
+<td style="text-align: center">1-7</td>
+<td style="text-align: left">ローカル</td>
+<td style="text-align: left">DBクラスタ全体</td>
+<td style="text-align: left">pg_basebackup</td>
+<td style="text-align: left"><span>$</span> pg_basebackup -D <span>$</span>BACKUP --xlog-method=stream</td>
+<td style="text-align: left">自動</td>
+</tr>
+<tr>
+<td style="text-align: center">1-8</td>
+<td style="text-align: left">リモート</td>
+<td style="text-align: left">DBクラスタ全体</td>
+<td style="text-align: left">pg_start_backup<br>pg_stop_backup</td>
+<td style="text-align: left"><span>$</span> psql -c "SELECT pg_start_backup(now()::text)"<br><span>$</span> scp 等<br><span>$</span> psql -c "SELECT pg_stop_backup()</td>
+<td style="text-align: left">手動(*3)</td>
+</tr>
+<tr>
+<td style="text-align: center">1-9</td>
+<td style="text-align: left">リモート</td>
+<td style="text-align: left">DBクラスタ全体</td>
+<td style="text-align: left">pg_basebackup</td>
+<td style="text-align: left">$ pg_basebackup -F tar -D - -z --xlog｜ssh remote_node "cat &gt; BACKUP.tar.gz"</td>
+<td style="text-align: left">自動(*4)</td>
+</tr>
+</tbody>
+</table>
+
+<p>※リモート：PostgreSQLが入っていないサーバ上のディスク等</p>
+
+<ul>
+<li>(*1) 各コマンドで使用できるオプション等の詳細についてはマニュアルを参照してください。
+
+<ul>
+<li><a href="http://www.postgresql.jp/document/9.5/html/app-pgdump.html" rel="nofollow noopener" target="_blank">pg_dump</a></li>
+<li><a href="http://www.postgresql.jp/document/9.5/html/app-pg-dumpall.html" rel="nofollow noopener" target="_blank">pg_dumpall</a></li>
+<li><a href="http://www.postgresql.jp/document/9.5/html/continuous-archiving.html" rel="nofollow noopener" target="_blank">pg_start_backup, pg_stop_backup</a></li>
+<li><a href="http://www.postgresql.jp/document/9.5/html/app-pgbasebackup.html" rel="nofollow noopener" target="_blank">pg_basebackup</a></li>
+</ul>
+</li>
+<li>(*2) データベースをリストアするには、「ベースバックアップ」と「以下のWAL」が必要になります。
+
+<ul>
+<li>項番1-6、1-7の場合、pg_start_backup実行後～pg_stop_backup実行完了までの期間中に発生したWAL</li>
+<li>項番1-9の場合、pg_basebackupコマンド実行から完了までの期間中に発生したWAL</li>
+</ul>
+</li>
+<li>(*3) ベースバックアップ取得中に発生したWALを手動で回収する必要があります。</li>
+<li>(*4) ベースバックアップ取得中の処理量が多く、WALがローテートした場合は手動で回収する必要があります。</li>
+</ul>
+
+<h1>
+<span id="2-バックアップ方式はどうやって決めるのか" class="fragment"></span><a href="#2-%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%96%B9%E5%BC%8F%E3%81%AF%E3%81%A9%E3%81%86%E3%82%84%E3%81%A3%E3%81%A6%E6%B1%BA%E3%82%81%E3%82%8B%E3%81%AE%E3%81%8B"><i class="fa fa-link"></i></a>2. バックアップ方式はどうやって決めるのか？</h1>
+
+<p>上記のようにバックアップ方式は色々ありますが、どの方式を選択すべきかは、何をどのようにバックアップしたいかという要件によって変わります。</p>
+
+<p>例として、いくつかの要件とそれに当てはまる方式を考えてみました。</p>
+
+<table>
+<thead>
+<tr>
+<th style="text-align: center">項番</th>
+<th style="text-align: left">要件例</th>
+<th style="text-align: left">選択すべき方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center">2-1</td>
+<td style="text-align: left">特定のテーブルやDBのみをバックアップしたい。</td>
+<td style="text-align: left">項番1-1,1-2 pg_dumpのみ実施可能。</td>
+</tr>
+<tr>
+<td style="text-align: center">2-2</td>
+<td style="text-align: left">任意のスクリプト経由でDBクラスタ全体のバックアップを行いたい。</td>
+<td style="text-align: left">項番1-6 pg_start_backup/pg_stop_backupで実施可能。</td>
+</tr>
+<tr>
+<td style="text-align: center">2-3</td>
+<td style="text-align: left">リストアに必要なアーカイブWALを自動で回収したい。</td>
+<td style="text-align: left">項番1-7 pg_basebackupコマンドの「--xlog-method=stream」オプションで実施可能。</td>
+</tr>
+<tr>
+<td style="text-align: center">2-4</td>
+<td style="text-align: left">リモートにDBクラスタ全体のバックアップを送りたい。</td>
+<td style="text-align: left">項番1-9 pg_basebackupコマンドの「-F tar -D -」オプションで実施可能。</td>
+</tr>
+</tbody>
+</table>
+
+<p>こんな感じで、要件によって選択すべきバックアップ方式は異なります。<br>
+他にも「リストアに掛かる時間を短くしたい」や「バックアップファイルのデータ量を小さくしたい」等というように要件は様々なため状況によって都度何が良いか考える必要があります。</p>
+
+<h1>
+<span id="さいごに" class="fragment"></span><a href="#%E3%81%95%E3%81%84%E3%81%94%E3%81%AB"><i class="fa fa-link"></i></a>さいごに</h1>
+
+<p>色々書いてみたものの、冗長化のためにスタンバイ作るときにも使うし、特別な要件でもない限りpg_basebackupコマンド（項番1-7）を使えばいいんじゃないかと思う。</p>
+<div class="hidden"><form class="js-task-list-update" action="/U_ikki/items/3158bf7c9e550ed0eeae" accept-charset="UTF-8" method="post"><input name="utf8" value="✓" type="hidden"><input name="_method" value="patch" type="hidden"><input name="authenticity_token" value="SdgQU03vsbbU/sPUJZjHOk2IGDFBpGrWIGfhpzMMgjvF6rBpFNcPxm39nkgUxzOAKpFSRhccfqRov+wg9I6DsQ==" type="hidden"><input name="updated_at_confirmation_in_unixtime" id="updated_at_confirmation_in_unixtime" value="1480078337" class="js-task-list-updated-at" type="hidden"><textarea name="raw_body" id="raw_body" class="js-task-list-field">#
+ はじめに
+PostgreSQLにはコア機能として提供されているバックアップの機能がいくつか存在します。
+今回はそれらの機能から、PostgreSQLが稼働した（サービスを継続した）状態で取得できる「論理バックアップ」、「オンラインバックアップ」につ
+いてまとめてみました。
+
+# 1. PostgreSQLで実施可能なバックアップ手法の一覧
+追加モジュール等を利用せず、PostgreSQLが提供する機能で実施可能なバックアップの取得方法を以下にまとめます。
+
+## 論理バックアップ
+データベースの内容をSQLで保存することを論理バックアップと呼びます。
+
+|項番|バックアップの格納先|バックアップの対象|コマンド|コマンド実行例(*1)|リストアに必要なWALのバックアップ(*2)|
+|:--:|:--|:--|:--|:--|:--|
+|1-1|ローカル|特定のデータベース|pg_dump|$ pg_dump -Fc db_name &gt; db.dump       
+|-（不要）|
+|1-2|ローカル|特定のテーブルのみ|pg_dump|$ pg_dump db_name -t tbl_name &gt; 
+db.sql|-（不要）|
+|1-3|ローカル|データのみ        |pg_dump|$ pg_dump db_name -a &gt; db.sql        
+ |-（不要）|
+|1-4|ローカル|スキーマ情報のみ  |pg_dump|$ pg_dump db_name -s &gt; db.sql         
+|-（不要）|
+|1-5|ローカル|DBクラスタ全体    |pg_dumpall|$ pg_dumpall &gt; db.sql      |-（不要）|
+※ローカル：PostgreSQLがインストールされたサーバ上でマウントされているディスク
+
+## オンラインバックアップ
+PostgreSQLが稼働した状態で取得可能なバックアップ。
+取得したバックアップファイルをPostgreSQLでは「ベースバックアップ」と呼びます。リストアには、ベースバックアップとWALファイルが必要に
+なります。
+
+|項番|バックアップの格納先|バックアップの対象|コマンド|コマンド実行例(*1)|リストアに必要なWALのバックアップ(*2)|
+|:--:|:--|:--|:--|:--|:--|
+|1-6|ローカル|DBクラスタ全体    |pg_start_backup&lt;br&gt;pg_stop_backup|\$ psql 
+-c "SELECT pg_start_backup(now()::text)"&lt;br&gt;\$ rsync 等&lt;br&gt;\$
+ psql -c "SELECT pg_stop_backup()"|手動(*3)|
+|1-7|ローカル|DBクラスタ全体    |pg_basebackup|\$ pg_basebackup -D \$BACKUP 
+--xlog-method=stream|自動|
+|1-8|リモート|DBクラスタ全体    |pg_start_backup&lt;br&gt;pg_stop_backup|\$ psql 
+-c "SELECT pg_start_backup(now()::text)"&lt;br&gt;\$ scp 等&lt;br&gt;\$ 
+psql -c "SELECT pg_stop_backup()|手動(*3)|
+|1-9|リモート|DBクラスタ全体|pg_basebackup|$ pg_basebackup -F tar -D - -z 
+--xlog｜ssh remote_node "cat &gt; BACKUP.tar.gz"|自動(*4)|
+※リモート：PostgreSQLが入っていないサーバ上のディスク等
+
+- (*1) 各コマンドで使用できるオプション等の詳細についてはマニュアルを参照してください。
+    - 
+[pg_dump](http://www.postgresql.jp/document/9.5/html/app-pgdump.html)
+    - 
+[pg_dumpall](http://www.postgresql.jp/document/9.5/html/app-pg-dumpall.html)
+
+    - [pg_start_backup, 
+pg_stop_backup](http://www.postgresql.jp/document/9.5/html/continuous-archiving.html)
+
+    - 
+[pg_basebackup](http://www.postgresql.jp/document/9.5/html/app-pgbasebackup.html)
+-
+ (*2) データベースをリストアするには、「ベースバックアップ」と「以下のWAL」が必要になります。
+    - 項番1-6、1-7の場合、pg_start_backup実行後～pg_stop_backup実行完了までの期間中に発生したWAL
+    - 項番1-9の場合、pg_basebackupコマンド実行から完了までの期間中に発生したWAL
+- (*3) ベースバックアップ取得中に発生したWALを手動で回収する必要があります。
+- (*4) ベースバックアップ取得中の処理量が多く、WALがローテートした場合は手動で回収する必要があります。
+
+
+# 2. バックアップ方式はどうやって決めるのか？
+上記のようにバックアップ方式は色々ありますが、どの方式を選択すべきかは、何をどのようにバックアップしたいかという要件によって変わります。
+
+例として、いくつかの要件とそれに当てはまる方式を考えてみました。
+
+|項番|要件例|選択すべき方式|
+|:--:|:--|:--|
+|2-1|特定のテーブルやDBのみをバックアップしたい。|項番1-1,1-2 pg_dumpのみ実施可能。|
+|2-2|任意のスクリプト経由でDBクラスタ全体のバックアップを行いたい。|項番1-6 
+pg_start_backup/pg_stop_backupで実施可能。|
+|2-3|リストアに必要なアーカイブWALを自動で回収したい。|項番1-7 
+pg_basebackupコマンドの「--xlog-method=stream」オプションで実施可能。|
+|2-4|リモートにDBクラスタ全体のバックアップを送りたい。|項番1-9 pg_basebackupコマンドの「-F tar -D 
+-」オプションで実施可能。|
+
+こんな感じで、要件によって選択すべきバックアップ方式は異なります。
+他にも「リストアに掛かる時間を短くしたい」や「バックアップファイルのデータ量を小さくしたい」等というように要件は様々なため状況によって都度何が良
+いか考える必要があります。
+
+# さいごに
+色々書いてみたものの、冗長化のためにスタンバイ作るときにも使うし、特別な要件でもない限りpg_basebackupコマンド（項番1-7）を使えば
+いいんじゃないかと思う。
+</textarea><input name="commit" value="Save changes" data-disable-with="Save changes" type="submit"></form></div></section></div><div class="col-sm-3"><div id="div-gpt-ad-1493084685571-0" style="height:250px; width:300px; margin-bottom: 20px;"><div style="border: 0pt none;" id="google_ads_iframe_/383564218/qiita.com_items-show_sidebar-top_0__container__"><iframe srcdoc="" style="border: 0px none; vertical-align: bottom;" marginheight="0" marginwidth="0" scrolling="no" name="google_ads_iframe_/383564218/qiita.com_items-show_sidebar-top_0" title="3rd party ad content" id="google_ads_iframe_/383564218/qiita.com_items-show_sidebar-top_0" frameborder="0" height="250" width="300"></iframe></div></div><div class="socialButtons"><div class="socialButtons_twitter"><iframe data-url="http://qiita.com/U_ikki/items/3158bf7c9e550ed0eeae" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/tweet_button.html" title="Twitter Tweet Button" style="position: static; visibility: visible; width: 60px; height: 20px;" class="twitter-share-button twitter-share-button-rendered twitter-tweet-button" allowtransparency="true" scrolling="no" id="twitter-widget-0" frameborder="0"></iframe></div><div class="socialButtons_hatebu"><iframe style="width: 47px; height: 20px;" src="javascript:false" scrolling="no" title="はてブに追加" class="hatena-bookmark-button-frame" frameborder="0" height="20" width="47"></iframe><script async="async" charset="utf-8" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/bookmark_button.js" type="text/javascript"></script></div><div class="socialButtons_googlePlus"><div id="___plusone_0" style="text-indent: 0px; margin: 0px; padding: 0px; background: transparent none repeat scroll 0% 0%; border-style: none; float: none; line-height: normal; font-size: 1px; vertical-align: baseline; display: inline-block; width: 90px; height: 20px;"><iframe title="+1" data-gapiattached="true" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/fastbutton.html" name="I0_1494470050131" id="I0_1494470050131" vspace="0" tabindex="0" style="position: static; top: 0px; width: 90px; margin: 0px; border-style: none; left: 0px; visibility: visible; height: 20px;" scrolling="no" marginwidth="0" marginheight="0" hspace="0" ng-non-bindable="" frameborder="0" width="100%"></iframe></div></div><div class="socialButtons_facebook"><div fb-iframe-plugin-query="action=like&amp;app_id=222621691108322&amp;container_width=0&amp;href=http%3A%2F%2Fqiita.com%2FU_ikki%2Fitems%2F3158bf7c9e550ed0eeae&amp;layout=button_count&amp;locale=en_US&amp;sdk=joey&amp;share=false&amp;show_faces=false" fb-xfbml-state="rendered" class="fb-like fb_iframe_widget" data-action="like" data-href="http://qiita.com/U_ikki/items/3158bf7c9e550ed0eeae" data-layout="button_count" data-share="false" data-show-faces="false"><span style="vertical-align: bottom; width: 60px; height: 20px;"><iframe class="" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/like.html" style="border: medium none; visibility: visible; width: 60px; height: 20px;" title="fb:like Facebook Social Plugin" scrolling="no" allowfullscreen="true" allowtransparency="true" name="f825f204cffb8" frameborder="0" height="1000px" width="1000px"></iframe></span></div></div><div class="socialButtons_pocket"><div class="pocket-btn"><iframe id="pocket-button-0" allowtransparency="true" scrolling="NO" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/button.html" frameborder="0" height="22" width="135"></iframe></div></div></div><section class="itemsShowAuthorInfo" itemprop="author" itemscope="" itemtype="http://schema.org/Person"><a href="http://qiita.com/U_ikki"><img alt="" class="itemsShowAuthorInfo_userIcon" itemprop="image" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/1473716391.png"></a><div class="itemsShowAuthorInfo_profileStats"><strong class="itemsShowAuthorInfo_userName" itemprop="name"><a itemprop="url" href="http://qiita.com/U_ikki">U_ikki</a></strong><div class="itemsShowAuthorInfo_contribution"><span class="itemsShowAuthorInfo_count">85</span><span class="itemsShowAuthorInfo_unit">Contribution</span></div><script type="application/json" id="js-react-on-rails-context">null</script>
+<script type="application/json" class="js-react-on-rails-component">{"component_name":"UserFollowButton","props":{"initial_followed_by":false,"position":"author-info","size":"btn-xs","url_name":"U_ikki"},"trace":false,"dom_id":"UserFollowButton-react-component-1f6ffb8b-3e81-4fdc-be61-82058546f009"}</script>
+    <div id="UserFollowButton-react-component-1f6ffb8b-3e81-4fdc-be61-82058546f009"><span class="userFollowButton" data-reactroot=""><button class="btn btn-default btn-block userFollowButton_inner btn-xs"><i class="i fa fa-user-plus"></i><!-- react-text: 4 -->フォロー<!-- /react-text --></button></span></div>
+    
+</div><section class="itemsShowAuthorPopularItems"><h5 class="itemsShowAuthorPopularItems_sectionTitle">人気の投稿</h5><ul class="itemsShowAuthorPopularItems_posts list-unstyled"><li itemscope="" itemtype="http://schema.org/Article"> <a itemprop="url" track="click" data-label="AuthorPopularItemsAtSidebar" href="http://qiita.com/U_ikki/items/e117acad0413546d6923">PostgreSQL 9.5 によるレプリケーション構成（非同期）</a></li><li itemscope="" itemtype="http://schema.org/Article"> <a itemprop="url" track="click" data-label="AuthorPopularItemsAtSidebar" href="http://qiita.com/U_ikki/items/ace27b4d1ffb3711035a">5分でできるnetdataによるPostgreSQLのリアルタイムリソースモニタリング</a></li><li itemscope="" itemtype="http://schema.org/Article"> <a itemprop="url" track="click" data-label="AuthorPopularItemsAtSidebar" href="http://qiita.com/U_ikki/items/8c326cc0f89052ea6276">バックアップユーティリティ barman 2.0 の新機能について</a></li><li itemscope="" itemtype="http://schema.org/Article"> <a itemprop="url" track="click" data-label="AuthorPopularItemsAtSidebar" href="http://qiita.com/U_ikki/items/21242bc6497ed12e82e7">RPMを用いたPostgreSQL 9.5 のインストール手順</a></li><li itemscope="" itemtype="http://schema.org/Article"> <a itemprop="url" track="click" data-label="AuthorPopularItemsAtSidebar" href="http://qiita.com/U_ikki/items/2d01bee76c0d2935cf7b">PostgreSQL におけるレプリケーションの仕組み</a></li></ul></section></section><div class="scroll-chaser"><div class="ad_frame_right_banner_1"></div><script async="" charset="UTF-8" defer="defer" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/adjs_set_pro.js" type="text/javascript"></script></div><script type="application/json" class="js-react-on-rails-component">{"component_name":"Toc","props":{"body":"\u003cul\u003e\n\u003cli\u003e\n\u003ca href=\"#%E3%81%AF%E3%81%98%E3%82%81%E3%81%AB\"\u003eはじめに\u003c/a\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003ca href=\"#1-postgresql%E3%81%A7%E5%AE%9F%E6%96%BD%E5%8F%AF%E8%83%BD%E3%81%AA%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%89%8B%E6%B3%95%E3%81%AE%E4%B8%80%E8%A6%A7\"\u003e1. PostgreSQLで実施可能なバックアップ手法の一覧\u003c/a\u003e\n\u003cul\u003e\n\u003cli\u003e\n\u003ca href=\"#%E8%AB%96%E7%90%86%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97\"\u003e論理バックアップ\u003c/a\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003ca href=\"#%E3%82%AA%E3%83%B3%E3%83%A9%E3%82%A4%E3%83%B3%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97\"\u003eオンラインバックアップ\u003c/a\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003ca href=\"#2-%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%96%B9%E5%BC%8F%E3%81%AF%E3%81%A9%E3%81%86%E3%82%84%E3%81%A3%E3%81%A6%E6%B1%BA%E3%82%81%E3%82%8B%E3%81%AE%E3%81%8B\"\u003e2. バックアップ方式はどうやって決めるのか？\u003c/a\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003ca href=\"#%E3%81%95%E3%81%84%E3%81%94%E3%81%AB\"\u003eさいごに\u003c/a\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n","wrapper":"#article-body-wrapper"},"trace":false,"dom_id":"Toc-react-component-70ed4b93-0820-44c0-82f3-d8f3cf0d908f"}</script>
+    <div id="Toc-react-component-70ed4b93-0820-44c0-82f3-d8f3cf0d908f"><div style="position: relative; top: 0px; height: 0px;"></div><div style="width: 165px; position: relative; top: 0px;" class="tocTree" data-reactroot=""><div style="max-height: 621px;" class="tocTree_contents nav"><ul>
+<li class="">
+<a href="#%E3%81%AF%E3%81%98%E3%82%81%E3%81%AB">はじめに</a>
+</li>
+<li class="">
+<a href="#1-postgresql%E3%81%A7%E5%AE%9F%E6%96%BD%E5%8F%AF%E8%83%BD%E3%81%AA%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%89%8B%E6%B3%95%E3%81%AE%E4%B8%80%E8%A6%A7">1. PostgreSQLで実施可能なバックアップ手法の一覧</a>
+<ul>
+<li class="">
+<a href="#%E8%AB%96%E7%90%86%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97">論理バックアップ</a>
+</li>
+<li class="">
+<a href="#%E3%82%AA%E3%83%B3%E3%83%A9%E3%82%A4%E3%83%B3%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97">オンラインバックアップ</a>
+</li>
+</ul>
+</li>
+<li class="">
+<a href="#2-%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%96%B9%E5%BC%8F%E3%81%AF%E3%81%A9%E3%81%86%E3%82%84%E3%81%A3%E3%81%A6%E6%B1%BA%E3%82%81%E3%82%8B%E3%81%AE%E3%81%8B">2. バックアップ方式はどうやって決めるのか？</a>
+</li>
+<li class="">
+<a href="#%E3%81%95%E3%81%84%E3%81%94%E3%81%AB">さいごに</a>
+</li>
+</ul>
+</div></div></div>
+    
+</div></div><div class="row"><div class="col-sm-9"><div style="text-align:center;"><div style="display: inline-block; margin: 10px auto;"><div id="div-gpt-ad-1494229071218-0" style="height:280px; width:336px;"><div style="border: 0pt none;" id="google_ads_iframe_/383564218/qiita.com_items-show_under-article-mobile_0__container__"><iframe srcdoc="" style="border: 0px none; vertical-align: bottom;" marginheight="0" marginwidth="0" scrolling="no" name="google_ads_iframe_/383564218/qiita.com_items-show_under-article-mobile_0" title="3rd party ad content" id="google_ads_iframe_/383564218/qiita.com_items-show_under-article-mobile_0" frameborder="0" height="280" width="336"></iframe></div></div></div></div><div class="ArticleFooter__menu"><div class="s-flex-align-center"><div class="js-likebutton" data-props="{&quot;like_status&quot;:false,&quot;like_count&quot;:3,&quot;show_count&quot;:true,&quot;uuid&quot;:&quot;3158bf7c9e550ed0eeae&quot;,&quot;likable_type&quot;:&quot;Article&quot;,&quot;position&quot;:&quot;article-footer&quot;}"><div class="LikeButton" data-reactroot=""><button class="p-button"><span class="fa fa-fw fa-thumbs-up"></span><span>いいね</span></button><div class="LikeButton__balloon">3</div></div></div><div class="ArticleFooter__userList"><div class="ArticleFooter__user"><div class="js-hovercard" data-hovercard-target-name="okumurakengo"><a itemprop="url" href="http://qiita.com/okumurakengo"><img alt="okumurakengo" class="thumb thumb--xs" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/1d2b20618845f3305fd0347ec8de9e75.jpeg"></a></div></div><div class="ArticleFooter__user"><div class="js-hovercard" data-hovercard-target-name="hyone29"><a itemprop="url" href="http://qiita.com/hyone29"><img alt="hyone29" class="thumb thumb--xs" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/1473688914.jpeg"></a></div></div><div class="ArticleFooter__user"><div class="js-hovercard" data-hovercard-target-name="Bentham3314"><a itemprop="url" href="http://qiita.com/Bentham3314"><img alt="Bentham3314" class="thumb thumb--xs" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/1473704683.png"></a></div></div></div></div><div class="u-flex u-align-center"><div class="ArticleFooter__stock"><div class="js-stockbutton" data-position="footer_menu" data-props="{&quot;stock_status&quot;:false}"><div class="StockButton" data-reactroot=""><button><div class="StockButton__stock"><div class="fa-stack"><span class="fa fa-folder-open fa-stack-1x unstock"></span></div><!-- react-text: 6 -->&nbsp;<!-- /react-text --><span class="StockButton__label">ストック</span></div></button></div></div></div><div class="ArticleFooter__editRequest"><a data-original-title="投稿者に記事をより良くするための提案ができます 💪" class="u-link-no-underline" data-toggle="tooltip" title="" href="http://qiita.com/drafts/3158bf7c9e550ed0eeae/edit"><span class="fa fa-send-o fa-lg"></span> <span>編集リクエスト</span></a></div><div class="dropdown ArticleFooter__dropdown"><a class="dropdown-toggle" data-toggle="dropdown" href="#"><span class="fa fa-ellipsis-h"></span></a><ul class="dropdown-menu dropdown-menu-right"><li><a href="http://qiita.com/U_ikki/items/3158bf7c9e550ed0eeae.md"><span class="fa fa-fw fa-file-text-o"></span> Markdownで本文を見る</a></li><li><a data-target=".js-report-form" data-toggle="modal" href="#"><i class="fa fa-fw fa-flag"></i> 問題がある投稿を報告する</a></li></ul></div></div></div><div class="itemsShowBody_articleColumnFooter"><div class="socialButtons"><div class="socialButtons_twitter"><iframe data-url="http://qiita.com/U_ikki/items/3158bf7c9e550ed0eeae" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/tweet_button_002.html" title="Twitter Tweet Button" style="position: static; visibility: visible; width: 60px; height: 20px;" class="twitter-share-button twitter-share-button-rendered twitter-tweet-button" allowtransparency="true" scrolling="no" id="twitter-widget-1" frameborder="0"></iframe></div><div class="socialButtons_hatebu"><iframe style="width: 47px; height: 20px;" src="javascript:false" scrolling="no" title="はてブに追加" class="hatena-bookmark-button-frame" frameborder="0" height="20" width="47"></iframe><script async="async" charset="utf-8" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/bookmark_button.js" type="text/javascript"></script></div><div class="socialButtons_googlePlus"><div id="___plusone_1" style="text-indent: 0px; margin: 0px; padding: 0px; background: transparent none repeat scroll 0% 0%; border-style: none; float: none; line-height: normal; font-size: 1px; vertical-align: baseline; display: inline-block; width: 90px; height: 20px;"><iframe title="+1" data-gapiattached="true" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/fastbutton_002.html" name="I1_1494470050143" id="I1_1494470050143" vspace="0" tabindex="0" style="position: static; top: 0px; width: 90px; margin: 0px; border-style: none; left: 0px; visibility: visible; height: 20px;" scrolling="no" marginwidth="0" marginheight="0" hspace="0" ng-non-bindable="" frameborder="0" width="100%"></iframe></div></div><div class="socialButtons_facebook"><div fb-iframe-plugin-query="action=like&amp;app_id=222621691108322&amp;container_width=0&amp;href=http%3A%2F%2Fqiita.com%2FU_ikki%2Fitems%2F3158bf7c9e550ed0eeae&amp;layout=button_count&amp;locale=en_US&amp;sdk=joey&amp;share=false&amp;show_faces=false" fb-xfbml-state="rendered" class="fb-like fb_iframe_widget" data-action="like" data-href="http://qiita.com/U_ikki/items/3158bf7c9e550ed0eeae" data-layout="button_count" data-share="false" data-show-faces="false"><span style="vertical-align: bottom; width: 60px; height: 20px;"><iframe class="" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/like_002.html" style="border: medium none; visibility: visible; width: 60px; height: 20px;" title="fb:like Facebook Social Plugin" scrolling="no" allowfullscreen="true" allowtransparency="true" name="fed7ec2fe58c2" frameborder="0" height="1000px" width="1000px"></iframe></span></div></div><div class="socialButtons_pocket"><div class="pocket-btn"><iframe id="pocket-button-1" allowtransparency="true" scrolling="NO" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/button_002.html" frameborder="0" height="22" width="135"></iframe></div></div></div></div><div class="itemsShowComment_wrapper" id="comments"><script type="application/json" class="js-react-on-rails-component">{"component_name":"PublicCommentListContainer","props":{"currentUser":null,"initialComments":[],"monthly_public_image_uploadable_size_limit":null,"total_uploaded_public_image_size_in_current_month":null,"item":{"id":441123,"uuid":"3158bf7c9e550ed0eeae","suspended":false,"secret":false},"owner":{"url_name":"U_ikki"},"is_team":false,"is_project":false,"logged_in":false,"polling":false,"mention_candidates":[{"id":125929,"url_name":"U_ikki","profile_image_url":"https://qiita-image-store.s3.amazonaws.com/0/125929/profile-images/1473716391"}]},"trace":false,"dom_id":"PublicCommentListContainer-react-component-57771330-d949-4999-9aff-3ba9d7cc6097"}</script>
+    <div id="PublicCommentListContainer-react-component-57771330-d949-4999-9aff-3ba9d7cc6097"><div class="commentList" data-reactroot=""><noscript></noscript></div></div>
+    
+</div></div></div></div></article><div class="js-report-form modal fade reportForm"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button name="button" type="submit" class="close" data-dismiss="modal">×</button><h4 class="modal-title">問題がある投稿を報告する</h4></div><div class="modal-body"><form action="/reports" accept-charset="UTF-8" method="post"><input name="utf8" value="✓" type="hidden"><input name="authenticity_token" value="SdgQU03vsbbU/sPUJZjHOk2IGDFBpGrWIGfhpzMMgjvF6rBpFNcPxm39nkgUxzOAKpFSRhccfqRov+wg9I6DsQ==" type="hidden"><input name="redirect_path" id="redirect_path" value="/U_ikki/items/3158bf7c9e550ed0eeae" type="hidden"><input name="item_uuid" id="item_uuid" value="3158bf7c9e550ed0eeae" type="hidden"><p>この投稿にどのような問題がありますか？</p><br><div class="form-group"><ul class="list-unstyled"><li><label><input name="report_type" id="report_type_spam" value="spam" required="required" type="radio"> スパムです </label></li><li><label><input name="report_type" id="report_type_harassment" value="harassment" required="required" type="radio"> 攻撃的または迷惑な内容を含んでいます </label></li><li><label><input name="report_type" id="report_type_inappropriate_content" value="inappropriate_content" required="required" type="radio"> 不適切な内容を含んでいます </label></li></ul></div><div class="reportForm_submitButtonContainer"><button name="button" type="submit" class="btn btn-primary reportForm_submitButton"><i class="fa fa-send"></i> 送信</button></div></form></div></div></div></div><script id="js-item" type="application/json">{ "url": "http://qiita.com/U_ikki/items/3158bf7c9e550ed0eeae", "id": 441123, "uuid": "3158bf7c9e550ed0eeae" }</script><script class="js-user" type="application/json">{&quot;id&quot;:125929,&quot;url_name&quot;:&quot;U_ikki&quot;,&quot;profile_image_url&quot;:&quot;https://qiita-image-store.s3.amazonaws.com/0/125929/profile-images/1473716391&quot;}</script><script language="JavaScript" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/qiita_bigmining.js" type="text/javascript"></script></div><footer class="footer"><div class="footer_inner"><div class="footer_container"><ul class="footer_links-left"><li class="footer_link"><a class="footer_copyright" href="http://increments.co.jp/">© 2011-2017 Increments Inc.</a></li><li class="footer_link"><a href="http://qiita.com/terms">利用規約</a></li><li class="footer_link"><a href="http://qiita.com/privacy">プライバシー</a></li><li class="footer_link"><a href="http://help.qiita.com/">ヘルプ</a></li><li class="footer_link"><a href="https://increments.zendesk.com/anonymous_requests/new">お問い合わせ</a></li></ul><ul class="footer_links-right"><li class="footer_link"><a href="http://qiita.com/about">Qiitaとは</a></li><li class="footer_link"><a href="http://qiita.com/users">ユーザー</a></li><li class="footer_link"><a href="http://qiita.com/tags">タグ</a></li><li class="footer_link"><a href="http://blog.qiita.com/">ブログ</a></li><li class="footer_link"><a href="http://qiita.com/api/v2/docs">API</a></li><li class="footer_link"><a href="https://teams.qiita.com/">Team</a></li><li class="footer_link"><a href="http://kobito.qiita.com/">Kobito</a></li><li class="footer_link"><a class="js-public-form-feedback-link" data-target=".js-feedback-form" data-toggle="modal" href=""><i class="fa fa-heart"></i> ご意見 <i class="fa fa-caret-down"></i></a></li></ul></div></div></footer><div class="js-feedback-form modal fade feedbackForm"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><button name="button" type="submit" class="close" data-dismiss="modal">×</button><h4 class="modal-title">ご意見</h4></div><div class="modal-body"><form class="js-feedback-form-form" action="/feedbacks" accept-charset="UTF-8" method="post"><input name="utf8" value="✓" type="hidden"><input name="authenticity_token" value="SdgQU03vsbbU/sPUJZjHOk2IGDFBpGrWIGfhpzMMgjvF6rBpFNcPxm39nkgUxzOAKpFSRhccfqRov+wg9I6DsQ==" type="hidden"><input name="redirect_path" id="redirect_path" value="/U_ikki/items/3158bf7c9e550ed0eeae" type="hidden"><div class="form-group"><textarea name="feedback[message]" id="feedback_message" class="form-control js-feedback-form-text-area" placeholder="Qiitaについてのご意見をお聞かせください。" required="required" rows="5"></textarea></div><div class="feedbackForm_submitButtonContainer"><button name="button" type="submit" class="btn btn-primary feedbackForm_submitButton"><i class="fa fa-send"></i> 送信</button><p class="feedbackForm_note">いただいたご意見への返信は行っておりません。<br>返信の必要な内容については、<a href="https://increments.zendesk.com/anonymous_requests/new">こちら</a> からお問い合わせください。</p></div><div style="position:fixed;top:-99999px;opacity:0.0001;"><input name="feedback[name]" type="text"></div></form></div></div></div></div><script>// if (window.mixpanel instanceof Element) {
+//   window.mixpanel = [];
+// }
+// (function(f,b){if(!b.__SV){var a,e,i,g;window.mixpanel=b;b._i=[];b.init=function(a,e,d){function f(b,h){var a=h.split(".");2==a.length&&(b=b[a[0]],h=a[1]);b[h]=function(){b.push([h].concat(Array.prototype.slice.call(arguments,0)))}}var c=b;"undefined"!==typeof d?c=b[d]=[]:d="mixpanel";c.people=c.people||[];c.toString=function(b){var a="mixpanel";"mixpanel"!==d&&(a+="."+d);b||(a+=" (stub)");return a};c.people.toString=function(){return c.toString(1)+".people (stub)"};i="disable track track_pageview track_links track_forms register register_once alias unregister identify name_tag set_config people.set people.set_once people.increment people.append people.track_charge people.clear_charges people.delete_user".split(" ");
+// for(g=0;g<i.length;g++)f(c,i[g]);b._i.push([a,e,d])};b.__SV=1.2;a=f.createElement("script");a.type="text/javascript";a.async=!0;a.src="//cdn.mxpnl.com/libs/mixpanel-2.2.min.js";e=f.getElementsByTagName("script")[0];e.parentNode.insertBefore(a,e)}})(document,window.mixpanel||[]);</script><script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/public-8e334abb299ed56fda004f6273dc1f98.js"></script><div class=" fb_reset" id="fb-root"><div style="position: absolute; top: -10000px; height: 0px; width: 0px;"><div><iframe src="http://staticxx.facebook.com/connect/xd_arbiter/r/87XNE1PC38r.js?version=42#channel=f2e965f19ea8c8e&amp;origin=http%3A%2F%2Fqiita.com" style="border: medium none;" tabindex="-1" title="Facebook Cross Domain Communication Frame" aria-hidden="true" id="fb_xdm_frame_http" scrolling="no" allowfullscreen="true" allowtransparency="true" name="fb_xdm_frame_http" frameborder="0"></iframe><iframe src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/87XNE1PC38r_002.html" style="border: medium none;" tabindex="-1" title="Facebook Cross Domain Communication Frame" aria-hidden="true" id="fb_xdm_frame_https" scrolling="no" allowfullscreen="true" allowtransparency="true" name="fb_xdm_frame_https" frameborder="0"></iframe></div></div><div style="position: absolute; top: -10000px; height: 0px; width: 0px;"><div></div></div></div><script>
+  (function () {
+    var script = document.getElementsByTagName('script')[0];
+    var load = function (src, id) {
+      var el = document.createElement('script');
+      el.async = true;
+      el.src = src;
+      el.id = id;
+      script.parentNode.insertBefore(el, script);
+    };
+      // Optimizely
+      load('//cdn.optimizely.com/js/52738645.js', 'optimizely-jssdk');
+      // Google Analytics
+      window._gaq = window._gaq || [];
+      var isCareer = location.hostname.split('.')[0] == 'career';
+      if (isCareer) {
+        window._gaq.push(['_setAccount', 'UA-24675221-11']);
+        window._gaq.push(['_setDomainName', 'qiita.com']);
+      } else {
+        window._gaq.push(['_setAccount', 'UA-24675221-1']);
+      }
+      window._gaq.push(['_setCustomVar', 1, 'logged_in', 'false', 2]);
+      window._gaq.push(['_trackPageview']);
+      var src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      load(src, 'google-analytics-jssdk');
+    // Google Analytics - Universal Analytics
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+        ga('create', 'UA-24675221-12', {
+          
+        });
+          ga('create', 'UA-87588038-1', { name: 'user' });
+          ga('user.send', 'pageview');
+        ga('set', 'dimension1', 'false');
+        ga('set', 'dimension3', 'false');
+      ga('require', 'displayfeatures');
+      ga('set', 'forceSSL', true);
+      ga('send', 'pageview');
+    // Google Tag Manager
+      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+      '//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+      })(window,document,'script','dataLayer','GTM-TBQWPN');
+  })();
+</script>
+<div class="ReactModalPortal"><div data-reactroot=""></div></div><script id="" type="text/javascript">var googletag=googletag||{};googletag.cmd=googletag.cmd||[];googletag.cmd.push(function(){googletag.defineSlot("/383564218/qiita.com_items-show_sidebar-top",[300,250],"div-gpt-ad-1493084685571-0").addService(googletag.pubads());googletag.pubads().enableSingleRequest();googletag.pubads().collapseEmptyDivs();googletag.enableServices()});</script>
+
+
+<script id="" type="text/javascript">$("#article-body-wrapper \x3e .col-sm-3").prepend("\x3cdiv id\x3d'div-gpt-ad-1493084685571-0' style\x3d'height:250px; width:300px; margin-bottom: 20px;'\x3e");googletag.cmd.push(function(){googletag.display("div-gpt-ad-1493084685571-0")});</script><script id="" type="text/javascript">var googletag=googletag||{};googletag.cmd=googletag.cmd||[];googletag.cmd.push(function(){googletag.defineSlot("/383564218/qiita.com_items-show_under-article-mobile",[336,280],"div-gpt-ad-1494229071218-0").addService(googletag.pubads());googletag.pubads().enableSingleRequest();googletag.pubads().collapseEmptyDivs();googletag.enableServices()});
+$(function(){var a=$('\x3cdiv style\x3d"text-align:center;"\x3e').append("\x3cdiv style\x3d'display: inline-block; margin: 10px auto;'\x3e\x3cdiv id\x3d'div-gpt-ad-1494229071218-0' style\x3d'height:280px; width:336px;'\x3e\x3c/div\x3e\x3c/div\x3e");$(".ArticleFooter__menu").before(a);googletag.cmd.push(function(){googletag.display("div-gpt-ad-1494229071218-0")})});</script>
+<script src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/gpt.js" id="" type="text/javascript"></script><iframe title="Twitter analytics iframe" style="position: absolute; visibility: hidden; display: none; width: 0px; height: 0px; padding: 0px; border: medium none;" allowfullscreen="true" allowtransparency="true" scrolling="no" id="rufous-sandbox" frameborder="0"></iframe><iframe aria-hidden="true" tabindex="-1" style="width: 1px; height: 1px; position: absolute; top: -100px;" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/postmessageRelay.html" id="oauth2relay1312526517" name="oauth2relay1312526517"></iframe><img style="display: none;" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/dmp.bin" border="0" height="1" width="1"><img style="display: none;" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/pixel.png" border="0" height="1" width="1"><img style="display: none;" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/adsct.gif" border="0" height="1" width="1"><script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='//www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-58Z82M');</script><div style="display: none; visibility: hidden;"><script type="text/javascript">(function(b,a,c){b=a.getElementsByTagName(c)[0];a=a.createElement(c);a.async=!0;a.src="//dmp.im-apps.net/js/6638/0001/itm.js";b.parentNode.insertBefore(a,b)})(window,document,"script");</script></div><div style="display: none; visibility: hidden;"><iframe src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/activityi.html" style="display:none" frameborder="0" height="1" width="1"></iframe></div><div style="display: none; visibility: hidden;"><iframe src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/activityi_002.html" style="display:none" frameborder="0" height="1" width="1"></iframe></div><div style="display: none; visibility: hidden;">
+<script type="text/javascript" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/oct.js"></script></div><div style="display: none; visibility: hidden;"></div><div style="display: none; visibility: hidden;"></div><div style="display: none; visibility: hidden;"></div><div style="display: none; visibility: hidden;"></div><div style="display: none; visibility: hidden;"></div><div style="display: none; visibility: hidden;"></div><div style="display: none; visibility: hidden;"></div><div style="display: none; visibility: hidden;"></div><div style="display: none; visibility: hidden;"></div><div style="display: none; visibility: hidden;"></div><div style="display: none; visibility: hidden;"></div><iframe src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/pixel.html" style="display: none;"></iframe><script id="" type="text/javascript">!function(c,d,b,f){if(!d[c]){d[c]=function(){d[c].instances.push(this);this.init&&this.init()};d[c].instances=[];for(var a=0,e=["td_send","td_send_imid"];a<e.length;a++)d[c].prototype[e[a]]=function(a){return function(){this["tmp_"+a]=this["tmp_"+a]||[];this["tmp_"+a].push(Array.prototype.slice.call(arguments))}}(e[a]);a=b.getElementsByTagName(f)[0];b=b.createElement(f);b.async=!0;b.src="//cf.im-apps.net/sdk/tdim-0.11.2.js";a.parentNode.insertBefore(b,a)}}("TDIM",window,document,"script");var t=new TDIM;
+t.td_api_key="4633/44ab22321675f37f93c94f1c53265720999626e1";t.td_db="6638";t.im_api_token="omO0CDJd98sxiIkb8Mzm7Q";t.gtm_dl="dataLayer";t.td_send_imid("pageviews",{qiita_search_categories:google_tag_manager["GTM-5SNCW4"].macro('gtm5')});</script><script id="" type="text/javascript">(function(a){var b=a.createElement("iframe"),c="https:"==a.location.protocol?"https://":"http://";b.src=c+"cf.im-apps.net/imid/beacon.html";b.style.display="none";a.body.appendChild(b)})(document);</script><iframe style="display: none;" src="PostgreSQL%E3%81%8C%E6%8F%90%E4%BE%9B%E3%81%99%E3%82%8B%E3%83%90%E3%83%83%E3%82%AF%E3%82%A2%E3%83%83%E3%83%97%E6%A9%9F%E8%83%BD%20-%20Qiita_files/beacon.html"></iframe><div style="position: absolute; width: 0px; height: 0px; overflow: hidden; padding: 0px; border: 0px none; margin: 0px;"><div style="position: absolute; visibility: hidden; top: 0px; left: 0px; width: auto; padding: 0px; border: 0px none; margin: 0px; white-space: nowrap; text-align: left; text-indent: 0px; text-transform: none; line-height: normal; letter-spacing: normal; word-spacing: normal; font-size: 40px; font-weight: normal; font-style: normal; font-size-adjust: none; font-family: MathJax_Size1,monospace;" id="MathJax_Font_Test"></div></div></body></html>
